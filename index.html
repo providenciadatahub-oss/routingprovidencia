@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Mapa Turístico Providencia - Rutas OSRM</title>
+  <!-- Cargamos los estilos y el SDK de ArcGIS desde el CDN (Gratuito) -->
+  <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+  <script src="https://js.arcgis.com/4.29/"></script>
+  <style>
+    html, body, #viewDiv { padding: 0; margin: 0; height: 100%; width: 100%; }
+    .instruction-box { position: absolute; top: 15px; left: 15px; background: white; padding: 15px; 
+                       border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.3); z-index: 10; width: 250px; }
+  </style>
+</head>
+<body>
+  <div class="instruction-box">
+    <h4>Rutas en Providencia</h4>
+    <p>Haz clic en el mapa para establecer el destino desde tu ubicación actual.</p>
+  </div>
+  <div id="viewDiv"></div>
+
+  <script>
+    require([
+      "esri/Map",
+      "esri/views/MapView",
+      "esri/Graphic",
+      "esri/layers/GraphicsLayer"
+    ], function(Map, MapView, Graphic, GraphicsLayer) {
+
+      // 1. Configuración del Mapa
+      const map = new Map({ basemap: "streets-navigation-vector" });
+      const view = new MapView({
+        container: "viewDiv",
+        map: map,
+        center: [-70.61, -33.42], // Coordenadas de la comuna de Providencia
+        zoom: 14
+      });
+
+      const routeLayer = new GraphicsLayer();
+      map.add(routeLayer);
+
+      // 2. Evento de clic para generar la ruta
+      view.on("click", function(event) {
+        // En un caso real, 'origin' vendría del GPS del usuario. 
+        // Aquí usamos un punto fijo en Providencia como ejemplo.
+        const origin = [-70.615, -33.425]; 
+        const destination = [event.mapPoint.longitude, event.mapPoint.latitude];
+        
+        calcularRutaOSRM(origin, destination);
+      });
+
+      async function calcularRutaOSRM(start, end) {
+        // !!! IMPORTANTE: Reemplaza esta URL con la que te dio RENDER al desplegar 'osrm-backend-providencia'
+        const urlRender = "https://osrm-backend-providencia.onrender.com"; 
+        
+        // OSRM requiere [Longitud, Latitud] en la llamada de API [1]
+        const query = `${urlRender}/route/v1/driving/${start},${start[2]};${end},${end[2]}?overview=full&geometries=geojson`;
+
+        try {
+          const response = await fetch(query);
+          const data = await response.json();
+          
+          if (!data.routes || data.routes.length === 0) return;
+          
+          const rutaGeometria = data.routes.geometry;
+
+          // 3. Dibujar la ruta devuelta por OSRM en el mapa de ArcGIS
+          const graficoRuta = new Graphic({
+            geometry: {
+              type: "polyline",
+              paths: rutaGeometria.coordinates
+            },
+            symbol: {
+              type: "simple-line",
+              color: [0, 122, 255, 0.8], // Azul vibrante
+              width: 5
+            }
+          });
+
+          routeLayer.removeAll(); // Limpiar ruta anterior
+          routeLayer.add(graficoRuta);
+        } catch (err) {
+          console.error("Error conectando con el servidor de rutas en Render:", err);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
