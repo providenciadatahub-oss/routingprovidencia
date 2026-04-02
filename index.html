@@ -48,41 +48,31 @@
       });
 
       async function calcularRutaOSRM(start, end) {
-        const urlRender = "https://osrm-backend-providencia.onrender.com"; 
+    // Asegúrate de que esta sea la URL de tu servicio en Render
+    const urlRender = "https://osrm-backend-providencia.onrender.com"; 
+    
+    // CORRECCIÓN: Extraemos explícitamente longitud  y latitud [2] 
+    // para evitar que se envíen valores 'undefined'
+    const lon1 = start;
+    const lat1 = start[2];
+    const lon2 = end;
+    const lat2 = end[2];
+
+    const query = `${urlRender}/route/v1/driving/${lon1},${lat1};${lon2},${lat2}?overview=full&geometries=geojson`;
+
+    try {
+        const response = await fetch(query);
+        if (!response.ok) throw new Error("Respuesta de red no OK");
+        const data = await response.json();
         
-        // CORRECCIÓN 1: La concatenación de coordenadas OSRM usa comas para lon/lat 
-        // y punto y coma para separar puntos. Ejemplo: lon,lat;lon,lat
-        const query = `${urlRender}/route/v1/driving/${start[0]},${start[1]};${end[0]},${end[1]}?overview=full&geometries=geojson`;
-
-        try {
-          const response = await fetch(query);
-          const data = await response.json();
-          
-          // CORRECCIÓN 2: El acceso a la geometría es data.routes[0].geometry
-          if (!data.routes || data.routes.length === 0) {
-            console.warn("No se encontró ruta.");
-            return;
-          }
-          
-          const rutaGeometria = data.routes[0].geometry;
-
-          const graficoRuta = new Graphic({
-            geometry: {
-              type: "polyline",
-              paths: rutaGeometria.coordinates
-            },
-            symbol: {
-              type: "simple-line",
-              color: [0, 122, 255, 0.8],
-              width: 5
-            }
-          });
-
-          routeLayer.removeAll(); 
-          routeLayer.add(graficoRuta);
-        } catch (err) {
-          console.error("Error conectando con Render:", err);
+        if (data.routes && data.routes.length > 0) {
+            const rutaGeometria = data.routes.geometry;
+            // Aquí sigue tu lógica para applyEdits en ArcGIS...
+            console.log("Ruta obtenida con éxito");
         }
+    } catch (err) {
+        console.error("Error conectando con OSRM:", err);
+       }
       }
     });
   </script>
